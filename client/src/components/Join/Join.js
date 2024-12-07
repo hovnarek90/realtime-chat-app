@@ -25,9 +25,19 @@ const Join = () => {
             className="joinInput"
             type="text"
             onChange={(event) => setRoom(event.target.value)}
+            onKeyDown={(e) =>
+              e.key === "Enter"
+                ? (window.location.href = `/chat?username=${username}&room=${room}`)
+                : null
+            }
           />
         </div>
-        <Link onClick={event => !username || !room ? event.preventDefault() : null} to={`/chat?username=${username}&room=${room}`}>
+        <Link
+          onClick={(event) =>
+            !username || !room ? event.preventDefault() : null
+          }
+          to={`/chat?username=${username}&room=${room}`}
+        >
           <button className="button mt-20" type="submit">
             Sign In
           </button>

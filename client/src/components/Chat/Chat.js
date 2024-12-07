@@ -3,6 +3,9 @@ import queryString from "query-string";
 import { useLocation } from "react-router-dom";
 import io from "socket.io-client";
 import "./Chat.css";
+import InfoBar from "../InfoBar/InfoBar";
+import InputField from "../InputField/InputField";
+import Messages from "../Messages/Messages";
 
 const Chat = () => {
   const [username, setUsername] = useState("");
@@ -17,18 +20,21 @@ const Chat = () => {
 
   const sendMessage = (event) => {
     event.preventDefault();
-    if (message) {
-      socketRef.current.emit("sendMessage", message, () => setMessage(""));
+    if (message.trim()) {
+      socketRef.current?.emit("sendMessage", message, () => setMessage(""));
     }
   };
 
   useEffect(() => {
     const { username, room } = queryString.parse(location.search);
+
+    // Initialize the socket connection
     socketRef.current = io(ENDPOINT);
 
     setUsername(username);
     setRoom(room);
 
+    // Emit the 'join' event
     socketRef.current.emit("join", { username, room }, (err) => {
       if (err) {
         setError(err);
@@ -37,58 +43,45 @@ const Chat = () => {
       }
     });
 
+    // Cleanup on component unmount
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
+        socketRef.current = null; // Reset socketRef
       }
     };
   }, [ENDPOINT, location.search]);
 
   useEffect(() => {
     if (socketRef.current) {
-      socketRef.current.on("message", (message) => {
-        setMessages((messages) => [...messages, message]);
-      });
+      // Listen for incoming messages
+      const handleNewMessage = (message) => {
+        setMessages((prevMessages) => [...prevMessages, message]);
+      };
+
+      socketRef.current.on("message", handleNewMessage);
+
+      // Cleanup listener on component unmount
+      return () => {
+        if (socketRef.current) {
+          socketRef.current.off("message", handleNewMessage);
+        }
+      };
     }
+  }, []); // Ensure this effect only runs once after component mount
 
-    return () => {
-      if (socketRef.current) {
-        socketRef.current.off("message");
-      }
-    };
-  }, [messages]);
-
-  useEffect(() => {
-  if (socketRef.current) {
-    // Set up socket listener for messages
-    socketRef.current.on("message", (message) => {
-      setMessages((prevMessages) => [...prevMessages, message]);
-      console.log(message); // Log the message only once per event
-    });
-  }
-
-  // Cleanup the socket listener on component unmount
-  return () => {
-    if (socketRef.current) {
-      socketRef.current.off("message");
-    }
-  };
-}, []);
-  console.log(message, messages);
   return (
     <div className="outerContainer">
       <div className="container">
-        <input
-          type="text"
-          onChange={(e) => setMessage(e.target.value)}
-          value={message}
-          onKeyDown={(event) => {
-            if (event.key === "Enter") {
-              sendMessage(event); // Call sendMessage when Enter is pressed
-            }
-          }} 
+        <InfoBar room={room} />
+        <Messages messages={messages} name={username} />
+        <InputField
+          sendMessage={sendMessage}
+          message={message}
+          setMessage={setMessage}
         />
       </div>
+      {error && <div className="error">{error}</div>}
     </div>
   );
 };

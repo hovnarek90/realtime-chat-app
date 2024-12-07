@@ -19,40 +19,58 @@ const io = socket(server, {
   },
 });
 
-let usersInRoom = {};
 io.on("connection", (socket) => {
   console.log(
-    `User connected: ${socket.id} and we have ${io.engine.clientsCount} users`
+    `User connected: ${socket.id} (Total users: ${io.engine.clientsCount})`
   );
 
   socket.on("join", ({ username, room }, callback) => {
     const { error, user } = addUser({ id: socket.id, username, room });
-    if (error) return callback(error);
-    // console.log(username, room);
-    // if (usersInRoom[room] && usersInRoom[room].includes(username)) {
-    //   return callback("Username is taken");
-    // }
-     
-    socket.join(username.room);
-    socket.emit("message", {user:"admin", text:`${user.username} has joined the room ${user.room}`});
-    socket.broadcast.to(user.room).emit("message", {user:"admin", text:`${user.username} has joined the room ${user.room}`});
-    // if (!usersInRoom[room]) usersInRoom[room] = [];
-    // usersInRoom[room].push(username);
+    if (error) {
+      return callback(error);
+    }
 
-    socket.join(room); 
+    socket.join(user.room);
+
+    socket.emit("message", {
+      user: "admin",
+      text: `Welcome ${user.username} to room ${user.room}!`,
+    });
+
+    socket.broadcast.to(user.room).emit("message", {
+      user: "admin",
+      text: `${user.username} has joined the room.`,
+    });
+
+    io.to(user.room).emit("roomData", {
+      room: user.room,
+      users: getUsersInRoom(user.room),
+    });
     callback();
-    socket.on("sendMessage", (message, callback) => {
-      const user = getUser(socket.id);
-      io.to(user.room).emit("message", { user: user.username, text: message });
-      callback();
-    })
+  });
 
-    // io.to(room).emit("message", `${username} has joined the room`);
+  socket.on("sendMessage", (message, callback) => {
+    const user = getUser(socket.id);
+    if (user) {
+      io.to(user.room).emit("message", { user: user.username, text: message });
+    }
+    io.to(user.room).emit("roomData", {
+      room: user.room,
+      users: getUsersInRoom(user.room),
+    });
+    callback();
   });
 
   socket.on("disconnect", () => {
+    const user = removeUser(socket.id);
+    if (user) {
+      io.to(user.room).emit("message", {
+        user: "admin",
+        text: `${user.username} has left.`,
+      });
+    }
     console.log(
-      `User disconnected: ${socket.id} and we have ${io.engine.clientsCount} users left`
+      `User disconnected: ${socket.id} (Total users: ${io.engine.clientsCount})`
     );
   });
 });
