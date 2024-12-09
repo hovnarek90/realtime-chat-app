@@ -6,6 +6,7 @@ import "./Chat.css";
 import InfoBar from "../InfoBar/InfoBar";
 import InputField from "../InputField/InputField";
 import Messages from "../Messages/Messages";
+import TextContainer from "../TextContainer/TextContainer";
 
 const Chat = () => {
   const [username, setUsername] = useState("");
@@ -13,6 +14,7 @@ const Chat = () => {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState([]);
+  const [users, setUsers] = useState([]);
 
   const location = useLocation();
   const ENDPOINT = "http://localhost:5000";
@@ -28,13 +30,11 @@ const Chat = () => {
   useEffect(() => {
     const { username, room } = queryString.parse(location.search);
 
-    // Initialize the socket connection
     socketRef.current = io(ENDPOINT);
 
     setUsername(username);
     setRoom(room);
 
-    // Emit the 'join' event
     socketRef.current.emit("join", { username, room }, (err) => {
       if (err) {
         setError(err);
@@ -43,32 +43,35 @@ const Chat = () => {
       }
     });
 
-    // Cleanup on component unmount
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
-        socketRef.current = null; // Reset socketRef
+        socketRef.current = null;
       }
     };
   }, [ENDPOINT, location.search]);
 
   useEffect(() => {
     if (socketRef.current) {
-      // Listen for incoming messages
       const handleNewMessage = (message) => {
         setMessages((prevMessages) => [...prevMessages, message]);
       };
 
-      socketRef.current.on("message", handleNewMessage);
+      const handleRoomData = ({ users }) => {
+        setUsers(users); 
+      };
 
-      // Cleanup listener on component unmount
+      socketRef.current.on("message", handleNewMessage);
+      socketRef.current.on("roomData", handleRoomData);
+
       return () => {
         if (socketRef.current) {
           socketRef.current.off("message", handleNewMessage);
+          socketRef.current.off("roomData", handleRoomData);
         }
       };
     }
-  }, []); // Ensure this effect only runs once after component mount
+  }, []);
 
   return (
     <div className="outerContainer">
@@ -81,6 +84,7 @@ const Chat = () => {
           setMessage={setMessage}
         />
       </div>
+      <TextContainer users={users} /> 
       {error && <div className="error">{error}</div>}
     </div>
   );

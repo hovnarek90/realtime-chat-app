@@ -4,13 +4,14 @@
   margin-left: 100px;
   color: white;
   height: 60%;
-  justify-content: space-between;
 }
 
 .activeContainer {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   margin-bottom: 50%;
+  margin-top: 20px;
+  font-size: 1.5em;
 }
 
 .activeItem {
@@ -20,6 +21,8 @@
 
 .activeContainer img {
   padding-left: 10px;
+  padding-right: 10px;
+  height: 10px;
 }
 
 .textContainer h1 {
